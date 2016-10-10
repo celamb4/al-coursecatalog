@@ -20,7 +20,7 @@ function graph(scores){
 
     var svg = d3.select("div[id=target]").append("svg")
         .attr("width", 1024)
-        .attr("height", 512)
+        .attr("height", 768)
         .attr("class", "vis")
       .append("g")
 
