@@ -1,0 +1,239 @@
+<!-- HW03 1.125 Arch & Eng IoT by Charles E. Lambert -->
+<!DOCTYPE html>
+<html>
+    <head>
+        <!-- D3 requirements -->
+        <script src="http://d3js.org/d3.v3.min.js"></script>
+        <script src="d3.tip.js"></script>
+
+        <!-- PS given js  -->
+        <script src="mitcourses_graph.js"></script>
+
+        <!-- Bootstrap -->
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js"></script>
+        <link rel="stylesheet" href="http://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+        <script src="http://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+
+        <!-- Data from courses -->
+        <script type="text/javascript" src="data_preparation/data.js"></script>
+
+        <!-- Custom stylesheet -->
+        <link rel="stylesheet" href="ps3.css">
+        <link rel="stylesheet" href="styles-example.css">
+
+        <!-- Data hanlding -->
+        <script type="text/javascript">
+
+            $(document).ready(function(){
+
+                // Create variable for graphing.
+                // scrubbedWords takes in the object of words and a limit of frequency per word
+                var scrubbedWords = filterCommonWords(scores(flattenArray(scrubTitles(getTitles()))), 10);
+
+                // Graph low frequency words
+                graph(scrubbedWords);
+
+                // Return an array of titles
+                // Uses data variable from data.js
+                function getTitles() {
+                    return data.split(',');
+                }
+
+                // pass in course titles
+                // return words
+                function scrubTitles(titles){
+                    var words = titles.map(function (value) {
+                        return value.toLowerCase().match(/([a-z]+)/g);
+                    });
+                    return words;
+                }
+
+                // pass in words array
+                // return flat words array
+                // flatten the 2D words array
+                function flattenArray(words){
+                    var wordsFlat = words.reduce(function (previous, current) {
+                        return previous.concat(current);
+                    });
+                    return wordsFlat;
+                }
+
+                // pass in the flat words array
+                // return word scores
+                // count the word frequency
+                function scores(wordsFlat){
+                    var scores = wordsFlat.reduce(function (previous, current) {
+                        if (current in previous) {
+                            previous[current] +=1;
+                        } else {
+                            previous[current] = 1;
+                        }
+                        return previous;
+                    }, {});
+                    return scores;
+                }
+
+                // Filter out words wigh high frequency
+                // Requires score object and frequency limit
+                function filterCommonWords(scores, limit) {
+                    var commonWords = [];
+                    for (var key in scores){
+                        if (scores.hasOwnProperty(key)) {
+                            if (scores[key] >= limit){
+                                commonWords.push(key);
+                            }
+                        }
+                    }
+                    commonWords.forEach(function (element)  {
+                        delete scores[element];
+                    });
+                    return scores;
+                }
+
+                function graph(scores){
+
+                    // clean up
+                    document.getElementById('target').innerHTML = '';
+
+                    // ------------- GRAPHING -------------
+
+                    var tip = d3.tip()
+                            .attr('class', 'd3-tip')
+                            .html(function(d) { return '<span>' + d.word + '</span>' })
+                            .offset([-12, 0])
+
+                    var padding = 6,
+                            radius = d3.scale.log().range([15, 70]).domain([2, 82]),
+                            color = d3.scale.category20c().domain([0, 15]);
+
+                    var nodes = [];
+                    var circle = [];
+                    var force;
+
+                    var svg = d3.select("div[id=target]").append("svg")
+                            .attr("width", 960)
+                            .attr("height", 480)
+                            .attr("class", "vis")
+                            .append("g")
+
+                    svg.call(tip);
+
+                    for (var word in scores) {
+                        nodes.push({radius: radius(scores[word]), color: color(word.length), word: word, score: scores[word]});
+                    }
+
+                    force = d3.layout.force()
+                            .nodes(nodes)
+                            .size([1024, 768])
+                            .gravity(0.01)
+                            .charge(-0.01)
+                            .on("tick", tick)
+                            .start();
+
+                    circle = svg.selectAll("circle")
+                            .data(nodes)
+                            .enter().append("circle")
+                            .attr("r", function(d) { return d.radius; })
+                            .style("fill", function(d) { return d.color; })
+                            .on('mouseover', tip.show)
+                            .on('mouseout', tip.hide)
+                            .call(force.drag);
+
+                    function tick(e) {
+                        circle
+                                .each(cluster(10 * e.alpha * e.alpha))
+                                .each(collide(.5))
+                                .attr("cx", function(d) { return d.x; })
+                                .attr("cy", function(d) { return d.y; });
+                    }
+
+                    // Move d to be adjacent to the cluster node.
+                    function cluster(alpha) {
+                        var max = {};
+
+                        // Find the largest node for each cluster.
+                        nodes.forEach(function(d) {
+                            if (!(d.color in max) || (d.radius > max[d.color].radius)) {
+                                max[d.color] = d;
+                            }
+                        });
+
+                        return function(d) {
+                            var node = max[d.color],
+                                    l,
+                                    r,
+                                    x,
+                                    y,
+                                    i = -1;
+
+                            if (node == d) return;
+
+                            x = d.x - node.x;
+                            y = d.y - node.y;
+                            l = Math.sqrt(x * x + y * y);
+                            r = d.radius + node.radius;
+                            if (l != r) {
+                                l = (l - r) / l * alpha;
+                                d.x -= x *= l;
+                                d.y -= y *= l;
+                                node.x += x;
+                                node.y += y;
+                            }
+                        };
+                    }
+
+                    // Resolves collisions between d and all other circles.
+                    function collide(alpha) {
+                        var quadtree = d3.geom.quadtree(nodes);
+                        return function(d) {
+                            var r = d.radius + radius.domain()[1] + padding,
+                                    nx1 = d.x - r,
+                                    nx2 = d.x + r,
+                                    ny1 = d.y - r,
+                                    ny2 = d.y + r;
+                            quadtree.visit(function(quad, x1, y1, x2, y2) {
+                                if (quad.point && (quad.point !== d)) {
+                                    var x = d.x - quad.point.x,
+                                            y = d.y - quad.point.y,
+                                            l = Math.sqrt(x * x + y * y),
+                                            r = d.radius + quad.point.radius + (d.color !== quad.point.color) * padding;
+                                    if (l < r) {
+                                        l = (l - r) / l * alpha;
+                                        d.x -= x *= l;
+                                        d.y -= y *= l;
+                                        quad.point.x += x;
+                                        quad.point.y += y;
+                                    }
+                                }
+                                return x1 > nx2
+                                        || x2 < nx1
+                                        || y1 > ny2
+                                        || y2 < ny1;
+                            });
+                        };
+                    }
+                }
+            });
+        </script>
+
+    <body>
+        <nav class="navbar navbar-default navbar-fixed-top">
+            <div class="container-fluid">
+                <div class="navbar-header">
+                    <a class="navbar-brand name_font" href="#"><span class="glyphicon glyphicon glyphicon-user" aria-hidden="true"></span> Charles E Lambert</a>
+                </div>
+                <ul class="nav navbar-nav navbar-right">
+                    <li><a href="#target">PS3</a></li>
+                </ul>
+            </div>
+        </nav>
+
+        <div class="jumbotron jumbotron-fluid">
+            <div class="row">
+                <div class="col-xs-12 col-xs-offset-3" id ="target">
+                </div>
+            </div>
+        </div>
+    </body>
+
+</html>
