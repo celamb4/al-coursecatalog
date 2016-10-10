@@ -1,4 +1,4 @@
-function graph(){
+function graph(scores){
 
     // clean up
     document.getElementById('target').innerHTML = '';
@@ -19,8 +19,8 @@ function graph(){
     var force;
 
     var svg = d3.select("div[id=target]").append("svg")
-        .attr("width", 1920)
-        .attr("height", 960)
+        .attr("width", 1024)
+        .attr("height", 512)
         .attr("class", "vis")
       .append("g")
 

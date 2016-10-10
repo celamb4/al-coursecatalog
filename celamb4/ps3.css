@@ -1,4 +1,5 @@
-.jumbotron-fluid{
+.jumbotron{
     background-color: white;
-    margin-top: 100px;
+    padding-top: 5%;
+    padding-bottom: 5%;
 }
