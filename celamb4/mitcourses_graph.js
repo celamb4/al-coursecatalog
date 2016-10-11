@@ -20,7 +20,7 @@ function graph(scores){
 
     var svg = d3.select("div[id=target]").append("svg")
         .attr("width", 1024)
-        .attr("height", 768)
+        .attr("height", 512)
         .attr("class", "vis")
       .append("g")
 
@@ -32,7 +32,7 @@ function graph(scores){
 
     force = d3.layout.force()
       .nodes(nodes)
-      .size([1024, 768])
+      .size([1024, 512])
       .gravity(0.01)
       .charge(-0.01)
       .on("tick", tick)
